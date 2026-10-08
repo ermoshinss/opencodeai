@@ -66,3 +66,21 @@ npm --prefix apps/web install
 Секреты хранятся в `~/.config/opencodeai/.env` (права `600`); в репозитории
 только `.env.example`. Архитектура — `docs/architecture/overview.md`,
 журнал решений — `docs/agent-logs/`.
+
+## Проверка работы
+
+API запускается на `0.0.0.0:8000`:
+
+- Swagger со всеми эндпоинтами — `http://localhost:8000/docs`
+- Health — `http://localhost:8000/api/v1/health`
+- Каталог модулей — `http://localhost:8000/api/v1/modules`
+
+Сквозной сценарий (заглушка прав, auth ещё не включена):
+
+1. `POST /api/v1/users` — создать пользователя (`email`, `name`).
+2. `POST /api/v1/workspaces` — создать workspace (`created_by` = id пользователя).
+3. `POST /api/v1/workspaces/{id}/projects` — создать проект.
+4. `POST /api/v1/admin/workspaces/{id}/modules` — включить модуль (`mail`).
+5. `GET /api/v1/admin/grants` — увидеть выданный доступ.
+
+Схема прав создана (`authz`), проверка ролей включается вместе с RBAC.
