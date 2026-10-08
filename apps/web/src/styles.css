@@ -1,0 +1,170 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #2f81f7;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 16px;
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sub {
+  color: var(--muted);
+  flex: 1;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.card-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.card-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel h3 {
+  margin: 16px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.row .full,
+.full {
+  width: 100%;
+}
+
+input,
+select,
+button {
+  background: #21262d;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
+input,
+select {
+  min-width: 0;
+  flex: 1;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button.ghost {
+  background: transparent;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+code {
+  background: #21262d;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-card {
+  background: var(--panel);
+  border: 1px solid #f85149;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 560px;
+}
