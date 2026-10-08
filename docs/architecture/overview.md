@@ -58,19 +58,23 @@ opencodeai/
 | Схема | Владелец | Таблицы |
 |-------|----------|---------|
 | `platform` | ядро | `settings` (конфигурация платформы), `user_settings` (конфигурация пользователей), `module_grants` (доступ workspace × модуль) |
-| `identity` | модуль | `users`, `credentials`, `sessions`, `invitations` |
-| `tenancy` | модуль | `workspaces`, `projects`, `workspace_members`, `project_members` |
-| `authorization` | модуль | `permissions`, `roles`, `role_permissions`, `role_assignments` |
-| `registry` | модуль | `modules` (каталог: code, title, version, state) |
+| `identity` | модуль | `users` |
+| `tenancy` | модуль | `workspaces`, `projects`, `workspace_members` |
+| `authz` | модуль authorization | `permissions`, `roles`, `role_permissions`, `role_assignments`, `superadmins` |
+| `registry` | модуль | `modules` (каталог: code, title, version, state; seed `mail`) |
 | `audit` | модуль | `audit_events` |
 
 Правила:
 
 - писать и читать можно **только таблицы своей схемы**; чужие данные —
   через сервис модуля, не через SQL;
-- `platform.module_grants` ссылается на `registry.modules`;
+- имя схемы authorization — **`authz`**: `authorization` — зарезервированное
+  слово PostgreSQL;
+- `platform.module_grants` — исключение: таблица в схеме ядра, но это домен
+  authorization (разграничение доступа); читает и пишет её только authorization;
 - `audit_events` заполняются всеми модулями, но таблица принадлежит `audit`;
-- `workspace_id` / `project_id` проставляет сервис, не клиент.
+- ссылки между модулями — по значению (`workspace_id`, `user_id`) без внешних
+  ключей между схемами; целостность обеспечивает сервисный слой;
 
 ## 5. REST-конвенция
 
@@ -109,8 +113,24 @@ apps/web/src/features/mail/
 └── components/
 ```
 
-Зависимости между модулями — только через сервисы: `identity.get_user()`,
-`tenancy.list_projects()`, `audit.record()`. Прямой SQL к чужой схеме запрещён.
+Модуль authorization (админка, права):
+
+| Метод | Путь | Назначение |
+|-------|------|-----------|
+| GET | `/api/v1/admin/users` | все пользователи |
+| GET | `/api/v1/admin/workspaces` | все workspace |
+| GET | `/api/v1/admin/modules` | весь каталог модулей |
+| GET | `/api/v1/admin/superadmins` | суперадмины платформы |
+| GET | `/api/v1/admin/roles` | роли и scope |
+| GET | `/api/v1/admin/grants` | все `platform.module_grants` |
+| POST | `/api/v1/admin/workspaces/{ws}/modules` | включить/выключить модуль |
+
+Зависимости между модулями — только через сервисы: authorization зовёт
+`identity`, `tenancy`, `registry` через их сервисы; прямого SQL по чужим
+схемам нет (кроме исключения `platform.module_grants` для authorization).
+
+Схема прав создана, проверка ролей включается вместе с RBAC
+(после первого сквозного сценария).
 
 ## 6. Стек
 
@@ -132,7 +152,6 @@ apps/web/src/features/mail/
 ## 8. Открытые вопросы
 
 1. Назначение продукта — определим позже, архитектуру не блокирует.
-2. Межмодульные вызовы в рантайме: синхронные вызовы сервисов в одном
-   процессе, типы из `packages/contracts` — подтвердить при первом модуле.
-3. Миграции и мультисхемность: одна ревизия может трогать несколько схем —
-   разводить ответственность, когда появится второй модуль.
+2. Межмодульные вызовы — решено: синхронные сервисы в одном процессе
+   (реализовано на authorization: зовёт сервисы identity/tenancy/registry).
+3. Мультисхемные миграции — решено: отдельная ревизия на схему.

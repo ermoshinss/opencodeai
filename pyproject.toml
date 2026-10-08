@@ -40,5 +40,8 @@ testpaths = ["apps/api/tests"]
 pythonpath = ["apps/api"]
 addopts = "-q"
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.ruff.lint.per-file-ignores]
 "apps/api/migrations/*" = ["E501"]
