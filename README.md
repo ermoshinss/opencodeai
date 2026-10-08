@@ -44,12 +44,25 @@ opencodeai/
 ## Разработка
 
 ```bash
-# backend
-python -m venv .venv && .venv/bin/pip install -r apps/api/requirements.txt
+# backend (venv на хосте: /home/ermoshinss/.venvs/opencodeai)
+.venv/bin/pip install -r apps/api/requirements.txt   # или: pip install ".[dev]"
+
+# миграции
+ENV_FILE=~/.config/opencodeai/.env alembic -c apps/api/alembic.ini upgrade head
+
+# api (из корня репозитория)
+PYTHONPATH=apps/api ENV_FILE=~/.config/opencodeai/.env \
+  .venv/bin/uvicorn app.main:app --reload
+
+# проверки
+ruff check apps/api/app apps/api/tests
+mypy apps/api/app
+pytest
 
 # frontend
 npm --prefix apps/web install
 ```
 
-Подробности запуска появятся на этапе настройки ядра. Текущий статус проекта —
-см. `docs/agent-logs/`.
+Секреты хранятся в `~/.config/opencodeai/.env` (права `600`); в репозитории
+только `.env.example`. Архитектура — `docs/architecture/overview.md`,
+журнал решений — `docs/agent-logs/`.
