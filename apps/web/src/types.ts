@@ -5,19 +5,25 @@ export interface User {
   created_at: string;
 }
 
-export interface Workspace {
+export interface HomeRights {
   id: string;
   name: string;
-  created_by: string;
-  created_at: string;
+  rights: string[];
 }
 
-export interface Project {
+export interface Me {
+  user: User;
+  homes: HomeRights[];
+}
+
+export interface Resource {
   id: string;
-  workspace_id: string;
+  home_id: string;
+  parent_id: string | null;
+  node_type: string;
+  module_code: string | null;
   name: string;
-  created_by: string;
-  created_at: string;
+  config: Record<string, unknown>;
 }
 
 export interface ModuleInfo {
@@ -27,10 +33,49 @@ export interface ModuleInfo {
   state: string;
 }
 
-export interface Grant {
-  workspace_id: string;
-  module_code: string;
+export interface Role {
+  id: string;
+  code: string;
+  name: string;
+  scope: string;
+  can_view: boolean;
+  can_edit: boolean;
+}
+
+export interface Superadmin {
+  user_id: string;
+  granted_by: string | null;
+  created_at: string;
+}
+
+export interface Assignment {
+  id: string;
+  user_id: string;
+  email: string;
+  role_code: string;
+  role_name: string;
+  node_id: string;
+  node_name: string;
+  created_at: string;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  kind: string;
+  state: Record<string, number | string>;
+  created_at: string;
+}
+
+export interface Reading {
+  id: string;
+  metric: string;
+  value: number;
+  created_at: string;
+}
+
+export interface HomeStatus {
   enabled: boolean;
-  config: Record<string, unknown>;
-  updated_at: string;
+  device_count: number;
+  devices: { id: string; name: string; state: Record<string, number | string> }[];
 }

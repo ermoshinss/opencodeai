@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime
 import uuid
 
-from sqlalchemy import JSON, TIMESTAMP, ForeignKey, Text, Uuid, text
+from sqlalchemy import JSON, TIMESTAMP, Boolean, ForeignKey, Text, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -42,6 +42,8 @@ class Role(Base):
     code: Mapped[str] = mapped_column(Text(), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(Text(), nullable=False)
     scope: Mapped[str] = mapped_column(Text(), nullable=False)
+    can_view: Mapped[bool] = mapped_column(Boolean(), server_default=text("true"), nullable=False)
+    can_edit: Mapped[bool] = mapped_column(Boolean(), server_default=text("false"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False
     )

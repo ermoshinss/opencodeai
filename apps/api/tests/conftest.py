@@ -22,6 +22,9 @@ HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
 PORT = int(os.getenv("POSTGRES_PORT", "5433"))
 USER = os.getenv("POSTGRES_USER", "app_user")
 
+SUPERADMIN_EMAIL = "ermoshinss"
+SUPERADMIN_PASSWORD = "synthetic-superadmin-pass"
+
 
 def _password() -> str:
     password = os.getenv("POSTGRES_PASSWORD")
@@ -48,6 +51,8 @@ _env_file.write_text(
             f"POSTGRES_USER={USER}",
             f"POSTGRES_PASSWORD={_password_value}",
             f"DATABASE_URL=postgresql+psycopg://{USER}:{_password_value}@{HOST}:{PORT}/{TEST_DB}",
+            f"SUPERADMIN_EMAIL={SUPERADMIN_EMAIL}",
+            f"SUPERADMIN_PASSWORD={SUPERADMIN_PASSWORD}",
             "",
         ]
     ),

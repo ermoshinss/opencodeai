@@ -168,3 +168,39 @@ code {
   padding: 20px;
   max-width: 560px;
 }
+.auth {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  width: 340px;
+  display: grid;
+  gap: 12px;
+}
+
+.subpanel {
+  background: rgba(22, 27, 34, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.members span {
+  flex: none;
+}
+
+button.ghost-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #f0f6fc;
+}

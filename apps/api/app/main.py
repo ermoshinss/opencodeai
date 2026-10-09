@@ -10,6 +10,7 @@ from app.core.errors import register_error_handlers
 from app.core.health import router as health_router
 from app.core.logging import setup_logging
 from app.modules.authorization.router import router as authorization_router
+from app.modules.climate.router import router as climate_router
 from app.modules.identity.router import router as identity_router
 from app.modules.registry.router import router as registry_router
 from app.modules.tenancy.router import router as tenancy_router
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
         tenancy_router,
         registry_router,
         authorization_router,
+        climate_router,
     ):
         app.include_router(router, prefix=settings.api_prefix)
     return app
