@@ -35,11 +35,11 @@ def test_end_to_end_module_grant() -> None:
     modules = client.get("/api/v1/modules")
     assert modules.status_code == 200
     assert {"code", "title", "version", "state"} <= set(modules.json()[0].keys())
-    assert any(m["code"] == "mail" for m in modules.json())
+    assert any(m["code"] == "climate" for m in modules.json())
 
     grant_response = client.post(
         f"/api/v1/admin/workspaces/{workspace_id}/modules",
-        json={"module_code": "mail", "enabled": True},
+        json={"module_code": "climate", "enabled": True},
     )
     assert grant_response.status_code == 201, grant_response.text
     assert grant_response.json()["enabled"] is True
@@ -49,7 +49,7 @@ def test_end_to_end_module_grant() -> None:
     active = [
         g
         for g in grants.json()
-        if g["workspace_id"] == str(workspace_id) and g["module_code"] == "mail"
+        if g["workspace_id"] == str(workspace_id) and g["module_code"] == "climate"
     ]
     assert len(active) == 1
     assert active[0]["enabled"] is True
@@ -72,11 +72,11 @@ def test_duplicate_grant_disables_and_unknown_module_fails() -> None:
 
     client.post(
         f"/api/v1/admin/workspaces/{workspace_id}/modules",
-        json={"module_code": "mail", "enabled": True},
+        json={"module_code": "climate", "enabled": True},
     )
     disable = client.post(
         f"/api/v1/admin/workspaces/{workspace_id}/modules",
-        json={"module_code": "mail", "enabled": False},
+        json={"module_code": "climate", "enabled": False},
     )
     assert disable.status_code == 201
     assert disable.json()["enabled"] is False

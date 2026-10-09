@@ -1,32 +1,85 @@
-# Архитектура opencodeai
+# Архитектура opencodeai — «Умный дом»
 
 Согласованная модель платформы. Обновляется только по решению владельца;
 сводка решений по датам — в `docs/agent-logs/`.
 
 ## 1. Назначение
 
-Платформа с подключаемыми бизнес-модулями. Целевая аудитория и сценарии
-пока не определены — архитектурное ядро строится независимо от них.
-Проект пишется с нуля, старый bootstrap не используется.
+Платформа **«Умный дом»** с подключаемыми бизнес-модулями.
 
-## 2. Ключевые решения
+- **Админ-владелец** управляет всем: домами, модулями, подмодулями,
+  участниками и их правами.
+- **Жилец** (end-user) через веб или мобильное приложение получает
+  **статус** дома через API.
+
+Права и роли хранятся **в базе данных**: код не «знает», кто владелец.
+Роль-владелец определяется назначением в БД и передаётся через админ-API
+или SQL — платформа не зависит от конкретного человека.
+
+## 2. Иерархия доменов
+
+```
+Дом ── Модуль ── Подмодуль
+```
+
+| Уровень | Что это в умном доме |
+|---------|----------------------|
+| **Дом** | корневая единица изоляции и владения |
+| **Модуль** | подключённая в дом система: Климат, Освещение, Безопасность, Энергия… |
+| **Подмодуль** | конкретное устройство/зона внутри модуля: «Кондиционер·гостиная», «Свет·двор» |
+
+Данные модуля живут в его PostgreSQL-схеме и ссылаются на узел дерева
+ресурсов. Включение модуля в дом = узел `module` в дереве ресурсов.
+
+## 3. Модель прав (RBAC)
+
+Доступ определяется **для каждого узла** дерева отдельно.
+
+- **Права**: `view` (просмотр) и `edit` (редактирование). `edit` включает `view`.
+- **Роль = шаблон прав**: у роли в БД есть `can_view` и `can_edit`.
+- **Назначение = (пользователь, роль, узел)**: узел — дом, модуль или подмодуль.
+- **Наследование вниз по дереву**: права, выданные на дом, действуют на его
+  модули и подмодули; назначение на нижний узел детализирует/перекрывает.
+- **Эффективные права на узел** — максимум прав по всем назначениям
+  пользователя, покрывающим узел (прямое или через предка).
+- **superadmin** — полный доступ ко всем домам (обход проверок).
+
+### Роли (seed)
+
+| Роль | Scope | can_view | can_edit | Назначение |
+|------|-------|----------|----------|------------|
+| `superadmin` | platform | ✓ | ✓ | все дома, платформа |
+| `owner` | home | ✓ | ✓ | дом целиком (владение) |
+| `user` | resource | ✓ | ✗ | узлы: дом/модуль/подмодуль (чтение) |
+
+Кастомные роли создаются в админке (роль = набор `view`/`edit`).
+
+### Передача прав владельца
+
+Роль владельца — это **данные** (`authz.role_assignments`). Любой суперадмин
+может выдать `owner` другому пользователю или назначить суперадмина —
+единственный bootstrap-бэкдор: первый суперадмин создан миграцией
+с `granted_by = NULL`. Дальнейшие назначения — только через действующих
+суперадминов (админ-API) или SQL.
+
+## 4. Ключевые решения
 
 | № | Решение |
 |---|---------|
 | 1 | Модульный монолит в одном репозитории, не микросервисы |
-| 2 | `core` — только инфраструктура: config, db, logging, errors, security |
-| 3 | `modules/<name>` — один бизнес-модуль: домен, API, таблицы; модули общаются через сервисы и контракты |
-| 4 | Два уровня изоляции: **workspace → проекты**; данные привязаны через `workspace_id` / `project_id` |
-| 5 | Одна БД `opencodeai`, PostgreSQL-схема на модуль + общая схема `platform` |
-| 6 | Миграции только добавляются: единый каталог Alembic, новое изменение = новая ревизия |
-| 7 | RBAC `user` / `admin`; авторизация включается после первого сквозного сценария, в тестах может отключаться |
-| 8 | Типы API — OpenAPI-спека из FastAPI, генерация TS-типов (один источник правды) |
-| 9 | Обращение к таблицам — явные схемные имена (`tenancy.workspaces`), без `search_path` |
-| 10 | Границы модулей — конвенция (README + ревью), автоматическая проверка в CI не применяется |
-| 11 | Секреты — файл окружения с правами `600`, в репозитории только `.env.example` |
-| 12 | GitHub, каждый проект — отдельный репозиторий; deploy key с Write access |
+| 2 | `core` — только инфраструктура: config, db, logging, errors, security/auth |
+| 3 | `modules/<name>` — один бизнес-модуль: домен, API, таблицы; общение через сервисы |
+| 4 | Три уровня изоляции: **Дом → Модуль → Подмодуль** (узел-дерево `tenancy.resources`) |
+| 5 | Одна БД `opencodeai`, схема на модуль + общая `platform` |
+| 6 | Миграции только добавляются: единый каталог Alembic |
+| 7 | Права: `view` / `edit` на узлы дерева; роль = шаблон прав; всё из БД |
+| 8 | Типы API — OpenAPI-спека из FastAPI, генерация TS-типов на фронт |
+| 9 | Обращение к таблицам — явные схемные имена, без `search_path` |
+| 10 | Границы модулей — конвенция (README + ревью) |
+| 11 | Секреты — файл окружения `600`, в репозитории только `.env.example` |
+| 12 | GitHub, один репозиторий на проект; deploy key с Write access; ветка `main` |
 
-## 3. Структура репозитория
+## 5. Структура репозитория
 
 ```text
 opencodeai/
@@ -34,124 +87,117 @@ opencodeai/
 │   ├── api/                    # FastAPI + SQLAlchemy + Alembic
 │   │   ├── app/
 │   │   │   ├── core/           # config, db, logging, errors, security
-│   │   │   ├── modules/        # identity, tenancy, authorization, registry, audit
+│   │   │   ├── modules/        # identity, tenancy, authorization, registry,
+│   │   │   │                   #   audit + бизнес-модули (climate, …)
 │   │   │   └── main.py
 │   │   └── migrations/         # единый каталог Alembic
 │   └── web/                    # React + Vite + TypeScript
 │       └── src/
-│           ├── features/       # по папке на модуль
+│           ├── features/       # по папке на модуль: auth, homes, authorization
 │           └── generated/      # TS-типы из OpenAPI (не редактировать руками)
-├── packages/contracts/         # общие DTO/типы API
-├── infra/                      # Docker, окружения, деплой
+├── packages/contracts/         # общие DTO/типы
+├── infra/
 ├── docs/
-│   ├── architecture/           # схемы, ключевые решения
-│   └── agent-logs/             # журнал решений по датам
+│   ├── architecture/
+│   └── agent-logs/
 ├── .github/workflows/          # CI: lint, typecheck, test, build
 ├── .env.example
-└── pyproject.toml              # ruff, mypy, pytest
+└── pyproject.toml
 ```
 
-## 4. Схемы БД
+## 6. Схемы БД
 
 Одна БД `opencodeai`, отдельная PostgreSQL-схема на модуль.
 
 | Схема | Владелец | Таблицы |
 |-------|----------|---------|
-| `platform` | ядро | `settings` (конфигурация платформы), `user_settings` (конфигурация пользователей), `module_grants` (доступ workspace × модуль) |
-| `identity` | модуль | `users` |
-| `tenancy` | модуль | `workspaces`, `projects`, `workspace_members` |
-| `authz` | модуль authorization | `permissions`, `roles`, `role_permissions`, `role_assignments`, `superadmins` |
-| `registry` | модуль | `modules` (каталог: code, title, version, state; seed `mail`) |
-| `audit` | модуль | `audit_events` |
+| `platform` | ядро | `settings`, `user_settings` |
+| `identity` | identity | `users`, `sessions` |
+| `tenancy` | tenancy | `resources` (дерево: дом/модуль/подмодуль) |
+| `authz` | authorization | `roles` (can_view/can_edit), `role_assignments` (на узел), `superadmins` |
+| `registry` | registry | `modules` (каталог: climate, security, energy) |
+| `audit` | audit | `audit_events` |
 
 Правила:
 
 - писать и читать можно **только таблицы своей схемы**; чужие данные —
-  через сервис модуля, не через SQL;
-- имя схемы authorization — **`authz`**: `authorization` — зарезервированное
-  слово PostgreSQL;
-- `platform.module_grants` — исключение: таблица в схеме ядра, но это домен
-  authorization (разграничение доступа); читает и пишет её только authorization;
-- `audit_events` заполняются всеми модулями, но таблица принадлежит `audit`;
-- ссылки между модулями — по значению (`workspace_id`, `user_id`) без внешних
-  ключей между схемами; целостность обеспечивает сервисный слой;
+  через сервис модуля;
+- имя схемы authorization — **`authz`** (`authorization` — зарезервированное
+  слово PostgreSQL);
+- `role_assignments.scope_id` ссылается на узел `tenancy.resources`;
+  международных внешних ключей между схемами нет — целостность на сервисном слое;
+- node_type: `home` (parent NULL), `module` (parent = дом), `submodule`
+  (parent = модуль); модуль уникален в доме по `module_code`.
 
-## 5. REST-конвенция
+> Таблицы `tenancy.workspaces|projects|workspace_members` и
+> `platform.module_grants` из ранней версии остаются в БД неиспользуемыми
+> (веха 1 «семья/workspace» заменена деревом домов) и будут удалены отдельной
+> миграцией после полного перевода модулей на ресурсы.
+
+## 7. REST-конвенция
 
 - Префикс: `/api/v1`.
-- Workspace — в пути: `/api/v1/workspaces/{workspace_id}/<module>/<resource>`.
-- Проект — параметр запроса или тела: `?project_id=…` / `"project_id"` в DTO.
-- Права проверяются на роуте (роль пользователя) + доступ модуля
-  (`platform.module_grants`) до входа в сервис.
+- Дом — в пути: `/api/v1/homes/{home_id}/...`.
+- Модуль — `/api/v1/homes/{home_id}/<module>/...`; подмодуль — в пути модуля.
+- Права проверяются на роуте: `require(node_type, node_id, view|edit)` до вызова сервиса.
 - Ответы — JSON, ошибки — единый формат `{code, message, details}`.
 
-Пример модуля `mail`:
+Пример:
 
 | Метод | Путь | Право |
 |-------|------|-------|
-| GET | `/api/v1/workspaces/{ws}/mail/templates` | `mail.template.read` |
-| POST | `/api/v1/workspaces/{ws}/mail/templates` | `mail.template.manage` |
-| GET | `/api/v1/workspaces/{ws}/mail/templates/{id}` | `mail.template.read` |
-| PATCH | `/api/v1/workspaces/{ws}/mail/templates/{id}` | `mail.template.manage` |
-| DELETE | `/api/v1/workspaces/{ws}/mail/templates/{id}` | `mail.template.manage` |
-| POST | `/api/v1/workspaces/{ws}/mail/messages` | `mail.send` |
-| GET | `/api/v1/workspaces/{ws}/mail/messages` | `mail.send.read` |
-| POST | `/api/v1/workspaces/{ws}/mail/events` | вебхук провайдера (HMAC) |
+| GET | `/api/v1/homes` | просмотр своих домов |
+| GET | `/api/v1/homes/{home}/modules` | `view` дома/модулей |
+| GET | `/api/v1/homes/{home}/climate/devices` | `view` подмодуля/модуля |
+| GET | `/api/v1/homes/{home}/climate/devices/{sub}/readings` | `view` |
+| POST | `/api/v1/homes/{home}/climate/devices` | `edit` дома/модуля |
+| POST | `/api/v1/homes/{home}/climate/devices/{sub}/command` | `edit` |
+| POST | `/api/v1/homes/{home}/roles` | `edit` дома |
+| GET | `/api/v1/admin/*` | superadmin |
 
-Структура модуля:
-
-```text
-apps/api/app/modules/mail/
-├── router.py     # эндпоинты: валидация, права, вызов service
-├── service.py    # бизнес-логика, транзакции
-├── models.py     # SQLAlchemy → таблицы схемы mail
-└── schemas.py    # Pydantic DTO → OpenAPI-спека
-
-apps/web/src/features/mail/
-├── api/mail.ts   # вызовы API, типы из src/generated
-├── hooks/
-└── components/
-```
-
-Модуль authorization (админка, права):
-
-| Метод | Путь | Назначение |
-|-------|------|-----------|
-| GET | `/api/v1/admin/users` | все пользователи |
-| GET | `/api/v1/admin/workspaces` | все workspace |
-| GET | `/api/v1/admin/modules` | весь каталог модулей |
-| GET | `/api/v1/admin/superadmins` | суперадмины платформы |
-| GET | `/api/v1/admin/roles` | роли и scope |
-| GET | `/api/v1/admin/grants` | все `platform.module_grants` |
-| POST | `/api/v1/admin/workspaces/{ws}/modules` | включить/выключить модуль |
-
-Зависимости между модулями — только через сервисы: authorization зовёт
-`identity`, `tenancy`, `registry` через их сервисы; прямого SQL по чужим
-схемам нет (кроме исключения `platform.module_grants` для authorization).
-
-Схема прав создана, проверка ролей включается вместе с RBAC
-(после первого сквозного сценария).
-
-## 6. Стек
+## 8. Стек
 
 - Backend: Python ≥3.12, FastAPI, SQLAlchemy 2, Alembic, psycopg3,
   pydantic-settings, uvicorn.
 - Frontend: React 19, TypeScript 5.7, Vite 6.
-- Tooling: ruff (line-length 100), mypy, pytest, покрытие — pytest-cov.
-- БД: PostgreSQL `127.0.0.1:5433` (5432 занят в WSL).
+- Tooling: ruff (line-length 100), mypy, pytest (+ pytest-cov).
+- БД: PostgreSQL `127.0.0.1:5433`.
 
-## 7. Порядок развития
+## 9. MVP-скоуп
 
-1. БД `opencodeai` + первая ревизия Alembic (схема `platform`).
-2. `core`: config, db, logging, errors, health.
-3. Первый сквозной сценарий: workspace → проект → доступ к модулю.
-4. `authorization` (включаем RBAC), `audit`.
-5. Контракты (OpenAPI → TS), frontend, GitHub Actions.
-6. Защита `main`, теги релизов, бэкапы БД.
+- Аутентификация: email+пароль (pbkdf2), сессии (opaque-токен `Authorization:
+  Bearer`, sha256 в БД, expires/revoked); `register/login/logout/me`.
+- Дерево «Дом → Модуль → Подмодуль».
+- RBAC: роли `view/edit`, назначения на узлы, наследование, суперадмин.
+- Вертикаль **«Климат»**: подмодули-устройства, показания, статус, команды;
+  жильцу — `view`, управление — ролям с `edit`.
+- Кабинет жильца: «мои дома → модули → подмодули (статус)».
+- Админка: дерево домов, роли, назначения, суперадмины.
+- Суперадмин `ermoshinss` (bootstrap).
+- Тесты (auth, наследование прав, изоляция узлов, вертикаль), CI.
 
-## 8. Открытые вопросы
+## 10. Планируемые доработки (зафиксированы)
 
-1. Назначение продукта — определим позже, архитектуру не блокирует.
-2. Межмодульные вызовы — решено: синхронные сервисы в одном процессе
-   (реализовано на authorization: зовёт сервисы identity/tenancy/registry).
-3. Мультисхемные миграции — решено: отдельная ревизия на схему.
+- Push-уведомления о событиях дома.
+- Автоматизации/сценарии («если…, то…»).
+- Мобильное приложение (React Native/PWA) — статус уже доступен через API.
+- Интеграции устройств: MQTT, Zigbee/ZWave, сторонние облака.
+- Share-токены для гостей (без аккаунта).
+- `audit`: полный журнал действий.
+- Инвайты по email, восстановление пароля, rate-limit.
+- Модули `security`, `energy`: данные и управление.
+- Кастомные роли через админ-UI.
+
+## 11. Порядок развития
+
+1. Каркас: `core`, схемы `platform`/`identity`/`tenancy`/`authz`/`registry` (сделано).
+2. **Новое ТЗ «Умный дом»**: документация + миграции к ресурсам (текущий этап).
+3. Аутентификация, RBAC по узлам, вертикаль «Климат».
+4. Frontend: кабинет жильца, админка, кодоген из OpenAPI.
+5. CI, аудит, интеграции устройств, мобильное приложение.
+
+## 12. Открытые вопросы
+
+1. Протоколы подключения устройств (MQTT, локальные шлюзы) — при интеграциях.
+2. Бэкапы/восстановление и прод-инфраструктура — при первом деплое.
+3. Удаление неиспользуемых таблиц вехи 1 — после перевода модулей на ресурсы.
